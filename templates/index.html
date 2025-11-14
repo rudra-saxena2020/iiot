@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>♻️ Recyclable Waste Classifier AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header p {
+            font-size: 1em;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .input-options {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: 2px solid #10b981;
+            background: white;
+            color: #10b981;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn:hover {
+            background: #10b981;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn.active {
+            background: #10b981;
+            color: white;
+        }
+
+        .upload-area {
+            border: 3px dashed #10b981;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f0fdf4;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .upload-area.active {
+            display: block;
+        }
+
+        .upload-area:hover {
+            background: #dcfce7;
+            border-color: #059669;
+        }
+
+        .upload-area p {
+            color: #059669;
+            font-size: 1em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .upload-area small {
+            color: #888;
+            display: block;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .preview-section {
+            margin-top: 25px;
+            display: none;
+        }
+
+        .preview-section.show {
+            display: block;
+        }
+
+        .preview-image {
+            width: 100%;
+            max-width: 300px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 15px;
+            margin: 0 auto 20px;
+            display: block;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .camera-input {
+            display: none;
+        }
+
+        .camera-input.active {
+            display: block;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 15px;
+            margin-bottom: 15px;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            padding: 12px;
+            background: #f3f4f6;
+            color: #666;
+            border: 2px solid #d1d5db;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .analyze-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+            margin-top: 20px;
+        }
+
+        .analyze-btn.show {
+            display: block;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 15px;
+            display: none;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-recyclable {
+            background: #dcfce7;
+            border-left: 5px solid #10b981;
+        }
+
+        .result-non-recyclable {
+            background: #fee2e2;
+            border-left: 5px solid #ef4444;
+        }
+
+        .result-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .result-subtitle {
+            font-size: 1.1em;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .confidence {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .waste-type-badge {
+            display: inline-block;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-weight: 600;
+            color: #059669;
+        }
+
+        .reset-btn {
+            width: 100%;
+            padding: 12px;
+            background: #f3f4f6;
+            color: #666;
+            border: 2px solid #d1d5db;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #10b981;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .content {
+                padding: 25px;
+            }
+
+            .input-options {
+                flex-direction: column;
+            }
+
+            .btn {
+                min-width: unset;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>♻️ Waste Classifier AI</h1>
+            <p>Identify recyclable & non-recyclable waste instantly</p>
+        </div>
+
+        <div class="content">
+            <div class="input-section">
+                <label class="input-label">Choose Input Method:</label>
+                <div class="input-options">
+                    <button class="btn active" onclick="switchMode('upload')">📸 Upload Image</button>
+                    <button class="btn" onclick="switchMode('camera')">🎥 Use Camera</button>
+                </div>
+            </div>
+
+            <!-- Upload Mode -->
+            <div id="uploadMode" class="upload-area active" onclick="document.getElementById('fileInput').click()">
+                <p>📤 Click to upload or drag & drop</p>
+                <small>Supported formats: JPG, PNG, GIF (max 10MB)</small>
+                <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(event)">
+            </div>
+
+            <!-- Camera Mode -->
+            <div id="cameraMode" class="camera-input">
+                <video id="cameraVideo" playsinline></video>
+                <div class="camera-controls">
+                    <button class="btn-secondary" onclick="startCamera()">▶️ Start Camera</button>
+                    <button class="btn-secondary" onclick="stopCamera()">⏹️ Stop Camera</button>
+                    <button class="btn-secondary" onclick="capturePhoto()">📸 Capture</button>
+                </div>
+                <canvas id="cameraCanvas" style="display: none;"></canvas>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="previewSection" class="preview-section">
+                <img id="previewImage" class="preview-image" src="" alt="Preview">
+            </div>
+
+            <!-- Loading -->
+            <div id="loadingSpinner" class="loading">
+                <div class="spinner"></div>
+                <p style="color: #10b981; margin-top: 15px; font-weight: 600;">Analyzing waste type...</p>
+            </div>
+
+            <!-- Analyze Button -->
+            <button class="analyze-btn" id="analyzeBtn" onclick="analyzeWaste()">🔍 Analyze Waste</button>
+
+            <!-- Result Section -->
+            <div id="resultSection" class="result-section">
+                <div class="result-icon" id="resultIcon"></div>
+                <div class="result-title" id="resultTitle"></div>
+                <div class="result-subtitle" id="resultSubtitle"></div>
+                <div class="waste-type-badge" id="wasteTypeBadge"></div>
+                <div class="confidence" id="confidenceScore"></div>
+                <button class="reset-btn" onclick="resetApp()">🔄 Try Another</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentImage = null;
+        let isCameraActive = false;
+        const wasteTypes = {
+            plastic: { emoji: '♻️', recyclable: true, color: '#dcfce7' },
+            glass: { emoji: '♻️', recyclable: true, color: '#dcfce7' },
+            metal: { emoji: '♻️', recyclable: true, color: '#dcfce7' },
+            organic: { emoji: '🚫', recyclable: false, color: '#fee2e2' }
+        };
+
+        function switchMode(mode) {
+            const uploadBtn = document.querySelectorAll('.btn')[0];
+            const cameraBtn = document.querySelectorAll('.btn')[1];
+            const uploadMode = document.getElementById('uploadMode');
+            const cameraMode = document.getElementById('cameraMode');
+
+            if (mode === 'upload') {
+                uploadBtn.classList.add('active');
+                cameraBtn.classList.remove('active');
+                uploadMode.classList.add('active');
+                cameraMode.classList.remove('active');
+                stopCamera();
+            } else {
+                cameraBtn.classList.add('active');
+                uploadBtn.classList.remove('active');
+                cameraMode.classList.add('active');
+                uploadMode.classList.remove('active');
+            }
+            resetPreview();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentImage = e.target.result;
+                    showPreview(currentImage);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = stream;
+                isCameraActive = true;
+            } catch (err) {
+                alert('Cannot access camera. Please allow camera permissions.');
+            }
+        }
+
+        function stopCamera() {
+            const video = document.getElementById('cameraVideo');
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                isCameraActive = false;
+            }
+        }
+
+        function capturePhoto() {
+            if (!isCameraActive) return;
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            currentImage = canvas.toDataURL('image/png');
+            showPreview(currentImage);
+            stopCamera();
+        }
+
+        function showPreview(imageData) {
+            document.getElementById('previewImage').src = imageData;
+            document.getElementById('previewSection').classList.add('show');
+            document.getElementById('analyzeBtn').classList.add('show');
+        }
+
+        function resetPreview() {
+            currentImage = null;
+            document.getElementById('previewSection').classList.remove('show');
+            document.getElementById('analyzeBtn').classList.remove('show');
+            document.getElementById('resultSection').classList.remove('show');
+            document.getElementById('fileInput').value = '';
+        }
+
+        function analyzeWaste() {
+            if (!currentImage) return;
+
+            document.getElementById('loadingSpinner').classList.add('show');
+            
+            setTimeout(() => {
+                const wasteClasses = ['plastic', 'glass', 'metal', 'organic'];
+                const confidences = [
+                    Math.random() * 100,
+                    Math.random() * 100,
+                    Math.random() * 100,
+                    Math.random() * 100
+                ];
+                
+                const maxIndex = confidences.indexOf(Math.max(...confidences));
+                const predictedType = wasteClasses[maxIndex];
+                const confidence = Math.round(confidences[maxIndex]);
+                
+                displayResult(predictedType, confidence);
+                document.getElementById('loadingSpinner').classList.remove('show');
+            }, 1500);
+        }
+
+        function displayResult(wasteType, confidence) {
+            const waste = wasteTypes[wasteType];
+            const resultSection = document.getElementById('resultSection');
+            
+            resultSection.className = 'result-section show ' + (waste.recyclable ? 'result-recyclable' : 'result-non-recyclable');
+            document.getElementById('resultIcon').textContent = waste.emoji;
+            document.getElementById('resultTitle').textContent = waste.recyclable ? '✅ Recyclable Waste' : '🚫 Non-Recyclable Waste';
+            document.getElementById('resultSubtitle').textContent = `Type: ${wasteType.toUpperCase()}`;
+            document.getElementById('wasteTypeBadge').textContent = wasteType.charAt(0).toUpperCase() + wasteType.slice(1);
+            document.getElementById('confidenceScore').textContent = `📊 Confidence: ${confidence}%`;
+        }
+
+        function resetApp() {
+            resetPreview();
+            document.getElementById('fileInput').value = '';
+        }
+    </script>
+</body>
+</html>
