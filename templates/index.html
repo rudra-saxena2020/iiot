@@ -375,11 +375,13 @@
             </div>
 
             <!-- Upload Mode -->
-            <div id="uploadMode" class="upload-area active" onclick="document.getElementById('fileInput').click()">
-                <p>📤 Click to upload or drag & drop</p>
-                <small>Supported formats: JPG, PNG, GIF (max 10MB)</small>
-                <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(event)">
-            </div>
+            <form id="uploadForm" method="post" action="/analyze" enctype="multipart/form-data" aria-label="Upload image form">
+                <div id="uploadMode" class="upload-area active" tabindex="0" role="button" aria-label="Click or drop image to upload">
+                    <p>📤 Click to upload or drag & drop</p>
+                    <small>Supported formats: JPG, PNG, GIF (max 10MB)</small>
+                    <input type="file" id="fileInput" name="image" accept="image/*" onchange="handleFileUpload(event)">
+                </div>
+            </form>
 
             <!-- Camera Mode -->
             <div id="cameraMode" class="camera-input">
@@ -398,13 +400,13 @@
             </div>
 
             <!-- Loading -->
-            <div id="loadingSpinner" class="loading">
-                <div class="spinner"></div>
+            <div id="loadingSpinner" class="loading" role="status" aria-live="polite">
+                <div class="spinner" aria-hidden="true"></div>
                 <p style="color: #10b981; margin-top: 15px; font-weight: 600;">Analyzing waste type...</p>
             </div>
 
             <!-- Analyze Button -->
-            <button class="analyze-btn" id="analyzeBtn" onclick="analyzeWaste()">🔍 Analyze Waste</button>
+            <button class="analyze-btn" id="analyzeBtn" onclick="analyzeWaste()" type="button">🔍 Analyze Waste</button>
 
             <!-- Result Section -->
             <div id="resultSection" class="result-section">
@@ -419,7 +421,7 @@
     </div>
 
     <script>
-        let currentImage = null;
+        let currentImage = null; // dataURL
         let isCameraActive = false;
         const wasteTypes = {
             plastic: { emoji: '♻️', recyclable: true, color: '#dcfce7' },
@@ -427,6 +429,46 @@
             metal: { emoji: '♻️', recyclable: true, color: '#dcfce7' },
             organic: { emoji: '🚫', recyclable: false, color: '#fee2e2' }
         };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const uploadMode = document.getElementById('uploadMode');
+            const fileInput = document.getElementById('fileInput');
+
+            // Click to open file chooser
+            uploadMode.addEventListener('click', () => fileInput.click());
+
+            // Keyboard activation (Enter / Space)
+            uploadMode.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInput.click();
+                }
+            });
+
+            // Drag & drop support
+            ['dragenter', 'dragover'].forEach(ev => {
+                uploadMode.addEventListener(ev, (e) => {
+                    e.preventDefault();
+                    uploadMode.classList.add('dragover');
+                    uploadMode.style.borderColor = '#059669';
+                });
+            });
+            ['dragleave', 'drop', 'dragend'].forEach(ev => {
+                uploadMode.addEventListener(ev, (e) => {
+                    e.preventDefault();
+                    uploadMode.classList.remove('dragover');
+                    uploadMode.style.borderColor = '';
+                });
+            });
+
+            uploadMode.addEventListener('drop', (e) => {
+                const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileUpload({ target: fileInput });
+                }
+            });
+        });
 
         function switchMode(mode) {
             const uploadBtn = document.querySelectorAll('.btn')[0];
@@ -450,7 +492,7 @@
         }
 
         function handleFileUpload(event) {
-            const file = event.target.files[0];
+            const file = event.target.files && event.target.files[0];
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -466,35 +508,40 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 const video = document.getElementById('cameraVideo');
                 video.srcObject = stream;
+                await video.play();
                 isCameraActive = true;
             } catch (err) {
-                alert('Cannot access camera. Please allow camera permissions.');
+                console.warn('Camera error:', err);
+                alert('Cannot access camera. Please allow camera permissions and ensure a camera is connected.');
             }
         }
 
         function stopCamera() {
             const video = document.getElementById('cameraVideo');
-            if (video.srcObject) {
+            if (video && video.srcObject) {
                 video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
                 isCameraActive = false;
             }
         }
 
         function capturePhoto() {
-            if (!isCameraActive) return;
             const video = document.getElementById('cameraVideo');
+            if (!video || !isCameraActive || !video.videoWidth) return;
             const canvas = document.getElementById('cameraCanvas');
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             currentImage = canvas.toDataURL('image/png');
             showPreview(currentImage);
             stopCamera();
         }
 
         function showPreview(imageData) {
-            document.getElementById('previewImage').src = imageData;
+            const previewImage = document.getElementById('previewImage');
+            previewImage.src = imageData;
+            previewImage.alt = 'Selected waste preview';
             document.getElementById('previewSection').classList.add('show');
             document.getElementById('analyzeBtn').classList.add('show');
         }
@@ -504,36 +551,71 @@
             document.getElementById('previewSection').classList.remove('show');
             document.getElementById('analyzeBtn').classList.remove('show');
             document.getElementById('resultSection').classList.remove('show');
-            document.getElementById('fileInput').value = '';
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) fileInput.value = '';
         }
 
-        function analyzeWaste() {
+        // Convert dataURL to Blob
+        function dataURLToBlob(dataURL) {
+            const parts = dataURL.split(',');
+            const meta = parts[0].match(/:(.*?);/);
+            const mime = meta ? meta[1] : 'image/png';
+            const binary = atob(parts[1]);
+            const array = [];
+            for (let i = 0; i < binary.length; i++) array.push(binary.charCodeAt(i));
+            return new Blob([new Uint8Array(array)], { type: mime });
+        }
+
+        async function analyzeWaste() {
             if (!currentImage) return;
 
-            document.getElementById('loadingSpinner').classList.add('show');
-            
-            setTimeout(() => {
+            const loading = document.getElementById('loadingSpinner');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            loading.classList.add('show');
+            analyzeBtn.disabled = true;
+
+            // Try to POST to server endpoint `/analyze` if available, otherwise fall back to simulated analysis
+            try {
+                const form = new FormData();
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput && fileInput.files && fileInput.files[0]) {
+                    form.append('image', fileInput.files[0]);
+                } else {
+                    // Convert dataURL to blob
+                    const blob = dataURLToBlob(currentImage);
+                    form.append('image', blob, 'capture.png');
+                }
+
+                const resp = await fetch('/analyze', { method: 'POST', body: form });
+                if (!resp.ok) throw new Error('Server returned ' + resp.status);
+
+                const data = await resp.json();
+                // Expecting { type: 'plastic'|'glass'|..., confidence: 94 }
+                if (data && data.type) {
+                    displayResult(data.type, Math.round(data.confidence || 0));
+                } else {
+                    throw new Error('Unexpected server response');
+                }
+            } catch (err) {
+                // Fallback: simulate a classification locally
+                console.warn('Server analysis failed, using local simulation:', err);
+                await new Promise(res => setTimeout(res, 800));
                 const wasteClasses = ['plastic', 'glass', 'metal', 'organic'];
-                const confidences = [
-                    Math.random() * 100,
-                    Math.random() * 100,
-                    Math.random() * 100,
-                    Math.random() * 100
-                ];
-                
+                const confidences = wasteClasses.map(() => Math.random() * 100);
                 const maxIndex = confidences.indexOf(Math.max(...confidences));
                 const predictedType = wasteClasses[maxIndex];
                 const confidence = Math.round(confidences[maxIndex]);
-                
                 displayResult(predictedType, confidence);
-                document.getElementById('loadingSpinner').classList.remove('show');
-            }, 1500);
+            } finally {
+                loading.classList.remove('show');
+                analyzeBtn.disabled = false;
+            }
         }
 
         function displayResult(wasteType, confidence) {
-            const waste = wasteTypes[wasteType];
+            const waste = wasteTypes[wasteType] || wasteTypes['organic'];
             const resultSection = document.getElementById('resultSection');
-            
+
             resultSection.className = 'result-section show ' + (waste.recyclable ? 'result-recyclable' : 'result-non-recyclable');
             document.getElementById('resultIcon').textContent = waste.emoji;
             document.getElementById('resultTitle').textContent = waste.recyclable ? '✅ Recyclable Waste' : '🚫 Non-Recyclable Waste';
@@ -544,7 +626,9 @@
 
         function resetApp() {
             resetPreview();
-            document.getElementById('fileInput').value = '';
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) fileInput.value = '';
+            stopCamera();
         }
     </script>
 </body>
